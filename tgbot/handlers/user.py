@@ -9,6 +9,9 @@ from aiogram.types import InputFile
 import logging
 import os
 @user_router.message(CommandStart())
+async def user_first_start(message: Message):
+    await message.answer(f"Assalomu alaykum, Xush kelibsiz {message.from_user.first_name}\n"
+                         f"Savollar va takliflar bo'yicha https://t.me/Gafurov989 ga murojaat qilishingiz mumkun", reply_markup=None)
 @user_router.message(Command("menu"))
 async def user_start(message: Message):
     await message.answer("Выберите меню", reply_markup=MainMenu)
