@@ -13,5 +13,6 @@ class FindId(StatesGroup):
     search_comand = State() #qidirishni bosganda ishga tushadigan state
     input_bs_id = State() #yangi BS uchun ip adres olayotganda, bs idsi kiritilganda ishga tushadigan state
     input_bs_name = State() #yangi BS uchun ip adres olayotganda, bs nomini kiritilganda ishga tushadigan state
+    send_msg = State() #userlarga message yuborish stati
 
 
