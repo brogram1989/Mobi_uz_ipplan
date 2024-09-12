@@ -109,7 +109,7 @@ async def set_commands(bot: Bot):
         BotCommand(command="/menu", description="Show main menu"),
         BotCommand(command="/reset", description="reset some state"),
         BotCommand(command="/download_log", description="download log file"),
-        BotCommand(command="/get_stat", description="get statistics about actions"),
+        BotCommand(command="/send_message", description="send message to users"),
         BotCommand(command="/help", description="Show help"),
     ]
     await bot.set_my_commands(commands)
