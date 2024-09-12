@@ -32,37 +32,59 @@ setup_logging()
 logger = logging.getLogger("excel_file_logger")
 
 #_____________________________________________________________________________________#
+async def notify_users(message: str):
+    for user_id in USERS: # Fetch user IDs from environment
+        try:
+            await bot.send_message(user_id, message)
+        except Exception as e:
+            logger.error(f"Failed to notify user {user_id}: {str(e)}")
+
 
 # log infolarni yig'ish uchun funksiyalar
-def give_new_ip_to_base_station(ip_address, bs_id, bsnode_id, user_id):
+async def give_new_ip_to_base_station(ip_address, bs_id, bsnode_id, user_id, user_name):
     try:
-        logger.info(
-            f"New {ip_address} ip address was given to {bs_id} from {bsnode_id}'s node by user_id {user_id} ")
+        message = f"New {ip_address} IP address was assigned to {bs_id} from {bsnode_id}'s node by user {user_id}"
+        logger.info(message)
+        message = f"New {ip_address} IP address was assigned to {bs_id} from {bsnode_id}'s node by user {user_name}"
+        await notify_users(message)
     except Exception as e:
         logger.error(f"Error encoding user_firstname: {str(e)}")
 
-def change_base_station_ip(bs_id, old_ip, new_ip, old_node, new_node, user_id):
+async def change_base_station_ip(bs_id, old_ip, new_ip, old_node, new_node, user_id, user_name):
     try:
-        logger.info(f"{bs_id}'s IP address {old_ip} was changed from {old_node} node to new IP address {new_ip} {new_node}'s node by user_id {user_id} ")
+        message = (f"{bs_id}'s IP address {old_ip} was changed from {old_node} node to "
+                   f"new IP address {new_ip} in {new_node}'s node by user {user_id}")
+        logger.info(message)
+        message = (f"{bs_id}'s IP address {old_ip} was changed from {old_node} node to "
+                   f"new IP address {new_ip} in {new_node}'s node by user {user_name}")
+        await notify_users(message)
     except Exception as e:
         logger.error(f"Error encoding user_firstname: {str(e)}")
 
-def delete_ip_address(bs_id, ip, node, user_id):
+async def delete_ip_address(bs_id, ip, node, user_id, user_name):
     try:
-        logger.info(
-            f"{bs_id}'s IP address {ip} was deleted from {node} node by user_id {user_id} ")
+        message = f"{bs_id}'s IP address {ip} was deleted from {node} node by user {user_id}"
+        logger.info(message)
+        message = f"{bs_id}'s IP address {ip} was deleted from {node} node by user {user_name}"
+        await notify_users(message)
     except Exception as e:
         logger.error(f"Error encoding user_firstname: {str(e)}")
 
-def file_uploaded(user_id):
+async def file_uploaded(user_id, user_name):
     try:
-        logger.info(f"ip_plan file uploaded by user_id {user_id} ")
+        message = f"IP plan file uploaded by user {user_id}."
+        logger.info(message)
+        message = f"IP plan file uploaded by user {user_name}."
+        await notify_users(message)
     except Exception as e:
         logger.error(f"Error encoding user_firstname: {str(e)}")
 
-def file_downloaded(user_id):
+async def file_downloaded(user_id, user_name):
     try:
-        logger.info(f"ip_plan file was downloaded by user_id {user_id}")
+        message = f"IP plan file was downloaded by user {user_id}."
+        logger.info(message)
+        message = f"IP plan file was downloaded by user {user_name}."
+        await notify_users(message)
     except Exception as e:
         logger.error(f"Error encoding user_firstname: {str(e)}")
 
@@ -83,18 +105,22 @@ async def download_file(file_id):
 @file_router.callback_query(lambda callback_query: callback_query.data.startswith('upload_'))
 async def fayl_yubor(query: CallbackQuery, state: FSMContext):
     if is_admin(query.from_user.id):
+        await query.answer()
         await query.answer("📎 tegishli faylni serverga yuklang")
         await query.message.answer(f"📎 выгрузите файл {query.data}", reply_markup=ReplyKeyboardRemove())
         #state belgilaymiz
         if query.data == "upload_ip_file":
+            await query.answer()
             await state.set_state(FindId.send_ip_file)
         else:
+            await query.answer()
             await query.message.answer("Fayl zagruzka qilishdan oldin, Hw NCE dan olgan excel fileni o'z "
                                        "kompyuteringizda ochib, keyin uni qaytadan .xlsx formatda saqlab, "
                                        "so'ngra uni serverga yuklang! ")
             await state.set_state(FindId.send_neid_file)
 
     else:
+        await query.answer()
         await query.answer("🚫Siz admin emassiz, fayl yuklolmaysiz!", reply_markup=ReplyKeyboardRemove())
         await query.message.answer("🚫Siz admin emassiz, fayl yuklolmaysiz!", reply_markup=ReplyKeyboardRemove())
     # Command to handle incoming Excel files
@@ -134,7 +160,7 @@ async def handle_ip_document(message: types.Message, state:FSMContext):
         for key in excel_data:
             sheet_names.append(key)
         await message.reply(f"\n <b>✅ выгрузился успешно !</b>\nСписок листов на вашом файле {sheet_names}\n")
-        file_uploaded(user_id=message.from_user.id)
+        await file_uploaded(user_id=message.from_user.id, user_name=message.from_user.first_name)
     except Exception as e:
         await message.reply(f"❌❓Возникло ошибка ! : <b>{str(e)}</b>\n"
                             f"Попробуйте заново !📎\n"
@@ -265,8 +291,8 @@ async def show_region(query: CallbackQuery, state: FSMContext):
             if sheet_names:
                 keyboard_builder = InlineKeyboardBuilder()
                 for region in sheet_names:
-                    check = "Новый № объекта"
-                    # "Новый № объекта" column bo'lmagan sheetlarni buttonga qo'shmaslik
+                    check = "№ объекта"
+                    # "№ объекта" column bo'lmagan sheetlarni buttonga qo'shmaslik
                     if check in excel_data[region].columns:
                         #adding regions by sheets
                         button_name =region
@@ -307,7 +333,7 @@ async def agg_nodes_in_region(query: CallbackQuery):
                 result_df = df[df['Узел агрегации'] == node]
                 if not result_df.empty:
                     bsnode_name = result_df.iloc[0]["Название объекта"]
-                    quantity_used_ip_address = len(result_df["Новый № объекта"].dropna())
+                    quantity_used_ip_address = len(result_df["№ объекта"].dropna())
                     quantity_all_ip_address = len(result_df["Узел агрегации"].dropna())
                     button_name = str(node)+'   '+bsnode_name+'   '+str(quantity_used_ip_address)+'/'+str(quantity_all_ip_address)
                     bsnode_id = str(node)
@@ -345,18 +371,18 @@ async def agg_node(query: CallbackQuery):
         iterated_values = ''
         i = 0
         mesage = ''
-        # Iterate over the non-NaN values in the "Новый № объекта" column
-        for obj_num in result_df["Новый № объекта"].dropna():
+        # Iterate over the non-NaN values in the "№ объекта" column
+        for obj_num in result_df["№ объекта"].dropna():
             # Extract the ip add from the "OMC IP" column
-            ip_add = result_df.loc[result_df.loc[:,"Новый № объекта"] == obj_num, "OMC IP"].values[0]
-            name = result_df.loc[result_df.loc[:,"Новый № объекта"] == obj_num, "Название объекта"].values[0]
+            ip_add = result_df.loc[result_df.loc[:,"№ объекта"] == obj_num, "OMC IP"].values[0]
+            name = result_df.loc[result_df.loc[:,"№ объекта"] == obj_num, "Название объекта"].values[0]
             i += 1
             # Append the object number and VLAN ID to the iterated_values string
             iterated_values += f"{i}. {obj_num} {name} ip: {ip_add} \n\n"
 
         # Extract the first object number, VLAN ID, and mask
 
-        first_obj = result_df.iloc[0]["Новый № объекта"]
+        first_obj = result_df.iloc[0]["№ объекта"]
         first_obj_name = result_df.iloc[0]["Название объекта"]
         first_vlan_id = result_df.iloc[0]["OMC 2G/3G/4G/5G VLAN"]
         first_mask = result_df.iloc[0]["OMC mask"]
@@ -376,8 +402,8 @@ async def search_bs(query: CallbackQuery, state: FSMContext):
     try:
         if is_user(query.from_user.id):
             await query.answer()
-            await query.message.answer(f"🔎 какой БС ишете...", reply_markup=ReplyKeyboardRemove())
             await state.set_state(FindId.search_comand)
+            await query.message.answer(f"🔎 какой БС ишете...", reply_markup=ReplyKeyboardRemove())
         else:
             await query.answer()
             await query.message.answer("🚫У Вас нет прав, Вы не ползователь!")
@@ -391,7 +417,7 @@ async def input_bs(message: Message, state:FSMContext):
         # user qidiryotgan BS ni ushlab olish
         bs_id = message.text.upper()
         # checking for a column Anywhere in the DataFrame
-        column_to_check = 'Новый № объекта'
+        column_to_check = '№ объекта'
         check = 0
         # Iterate over each sheet and display the first few rows
         for sheet_name, df in excel_data.items():
@@ -401,7 +427,7 @@ async def input_bs(message: Message, state:FSMContext):
 
                 if df.isin([bs_id]).any().any():
                     check = 1
-                    row_index = df.loc[df['Новый № объекта'] == bs_id].index[0]
+                    row_index = df.loc[df['№ объекта'] == bs_id].index[0]
                     found_df = df.iloc[row_index]
                     node_bs = found_df['Узел агрегации']
                     bs_name = found_df['Название объекта']
@@ -459,7 +485,7 @@ async def handle_command(query: CallbackQuery):
                     result_df = df[df['Узел агрегации'] == node]
                     if not result_df.empty:
                         bsnode_name = result_df.iloc[0]["Название объекта"]
-                        quantity_used_ip_address = len(result_df["Новый № объекта"].dropna())
+                        quantity_used_ip_address = len(result_df["№ объекта"].dropna())
                         quantity_all_ip_address = len(result_df["Узел агрегации"].dropna())
                         button_name = str(node) + '   ' + bsnode_name + '   ' + str(
                             quantity_used_ip_address) + '/' + str(quantity_all_ip_address)
@@ -500,19 +526,19 @@ async def handle_command(query: CallbackQuery):
 async def handle_command2(query: CallbackQuery):
     try:
         user_id = query.from_user.id
-        user_firstname = query.from_user.first_name
+        user_name = query.from_user.first_name
         no_prefix = query.data[len('del_ip'):]
         region, row_index,bs_id = no_prefix.split(':')
         # Replace BS_ID with None in the original position
         df = excel_data[region]
-        df.at[int(row_index), "Новый № объекта"] = None
+        df.at[int(row_index), "№ объекта"] = None
         df.at[int(row_index), "Название объекта"] = None
         ip = df.at[int(row_index), "OMC IP"]
         node = df.at[int(row_index), "Узел агрегации"]
         excel_data[region] = df
         #loglarni log faylga yozamiz
 
-        delete_ip_address(bs_id, ip, node, user_id)
+        await delete_ip_address(bs_id, ip, node, user_id, user_name)
         print(f'user {user_id} delete {bs_id} ip address {ip} from {node} node')
 
         await query.message.answer(f"успешно удалился {bs_id} из таблиции, на узле агрегации {node}"
@@ -525,7 +551,7 @@ async def handle_command2(query: CallbackQuery):
 async def change_node(query: CallbackQuery):
     try:
         user_id = query.from_user.id
-        user_firstname = query.from_user.first_name
+        user_name = query.from_user.first_name
         # Remove the prefix 'to_node' from query.data
         no_prefix = query.data[len('to_node:'):]
         # Extract the region, new_node, bs_id, row_index from the callback data
@@ -534,25 +560,30 @@ async def change_node(query: CallbackQuery):
         # Get the desired DataFrame based on the region
         df = excel_data[region]
         # # Find the index of the row containing the current bs_id
-        index_row = df[df['Новый № объекта'] == bs_id].index[0]
+        index_row = df[df['№ объекта'] == bs_id].index[0]
 
-        # Find the first row where 'Узел агрегации' matches new_node and 'Новый № объекта' is None
-        none_rows = df[(df['Узел агрегации'] == new_node) & (df['Новый № объекта'].isna())].index
+        # Find the first row where 'Узел агрегации' matches new_node and '№ объекта' is None
+        none_rows = df[(df['Узел агрегации'] == new_node) & (df['№ объекта'].isna())].index
         if none_rows.any():
             # Replace the current bs_id to new node
-            df.loc[none_rows[0], 'Новый № объекта'] = bs_id
+            df.loc[none_rows[0], '№ объекта'] = bs_id
             df.loc[none_rows[0], 'Название объекта'] = bs_name
             new_ip = df.loc[none_rows[0], 'OMC IP']
+            #yangi uzel agg ni bosmaga berish uchun
+            bs_info = ""
+            for col in df.columns:  # Iterate over the columns of the DataFrame
+                bs_info += f"{col}: {df.at[none_rows[0], col]}\n"
 
             # Replace the current bs_id with None in the original position
             #index_row olyabman, chunki row_index str format bo'lgani uchun, aslida
             #index_row va row_index bir xil qiymatda str yoki int ligini xisobga olmasak
             old_ip = df.at[index_row, "OMC IP"]
-            df.at[index_row, "Новый № объекта"] = None
+            df.at[index_row, "№ объекта"] = None
             df.at[index_row, "Название объекта"] = None
             #log faylga yozamiz
-            change_base_station_ip(bs_id, old_ip, new_ip, old_node, new_node, user_id)
+            await change_base_station_ip(bs_id, old_ip, new_ip, old_node, new_node, user_id, user_name)
         else:
+            await query.answer()
             await query.message.answer(
                     "Извините, в данной узле агрегации нет свободных мест для нового бс.",
                     reply_markup=ReplyKeyboardRemove()
@@ -560,12 +591,14 @@ async def change_node(query: CallbackQuery):
             return
         # Update the excel_data dictionary with the modified DataFrame
         excel_data[region] = df
-
+        target = df[(df['Узел агрегации'] == new_node) & (df['№ объекта'] == bs_id)]
         await query.answer()
-        await query.message.answer(f"{bs_id} изменил узел агрегации с {old_node} на {new_node} ",
-                reply_markup=ReplyKeyboardRemove()
-                                   )
+        await query.message.answer(f"{bs_id} изменил узел агрегации с {old_node} на {new_node} \n"
+                                   f"Новый ip адресов для <b>{bs_id}</b>\n"
+                                   f"{bs_info}",
+                reply_markup=ReplyKeyboardRemove())
     except Exception as e:
+        await query.answer()
         await query.message.answer(f"❌❓Возникло ошибка ! : <b>{str(e)}</b>\n")
 
 #______________________________________________________________________________________________#
@@ -649,6 +682,7 @@ async def new_bs(query: CallbackQuery):
         df = excel_data[region]
         #kirgizilgan bs bizning dataframeda bor yoki yo'qligini tekshirib olamiz avval
         if df.isin([bs_id]).any().any():
+            await query.answer()
             await query.message.answer(f"На БС '{bs_id}' уже есть ip адреса на {region} регионе!")
         #agar kirgazilgan bs_id bizni df da bo'lmasa unga shu regiondan qaysi uzel agregatsiyaga qo'yilishini so'raymiz
         else:
@@ -662,7 +696,7 @@ async def new_bs(query: CallbackQuery):
                     result_df = df[df['Узел агрегации'] == node]
                     if not result_df.empty:
                         bsnode_name = result_df.iloc[0]["Название объекта"]
-                        quantity_used_ip_address = len(result_df["Новый № объекта"].dropna())
+                        quantity_used_ip_address = len(result_df["№ объекта"].dropna())
                         quantity_all_ip_address = len(result_df["Узел агрегации"].dropna())
                         button_name = str(node) + '   ' + bsnode_name + '   ' + str(
                             quantity_used_ip_address) + '/' + str(quantity_all_ip_address)
@@ -690,7 +724,7 @@ async def new_bs(query: CallbackQuery):
 async def change_node(query: CallbackQuery):
     try:
         user_id = query.from_user.id
-        user_firstname = query.from_user.first_name
+        user_name = query.from_user.first_name
 
         # Remove the prefix 'to_node' from query.data
         no_prefix = query.data[len('set_node_tonewbs'):]
@@ -702,11 +736,11 @@ async def change_node(query: CallbackQuery):
         df = excel_data[region]
         # # Find the index of the row containing the current bs_id
 
-        # Find the first row where 'Узел агрегации' matches new_node and 'Новый № объекта' is None
-        none_rows = df[(df['Узел агрегации'] == bsnode_id) & (df['Новый № объекта'].isna())].index
+        # Find the first row where 'Узел агрегации' matches new_node and № объекта' is None
+        none_rows = df[(df['Узел агрегации'] == bsnode_id) & (df['№ объекта'].isna())].index
         if none_rows.any():
             # Replace the current bs_id to new node
-            df.loc[none_rows[0], 'Новый № объекта'] = bs_id
+            df.loc[none_rows[0], '№ объекта'] = bs_id
             df.loc[none_rows[0], 'Название объекта'] = bs_name
             ip_address = df.loc[none_rows[0], 'OMC IP']
 
@@ -720,10 +754,9 @@ async def change_node(query: CallbackQuery):
                 f"На <b>{bs_id}-{bs_name}</b> дали новые IP-адресa из узла агрегации <b>{bsnode_id}</b>\n{bs_info}",
                 reply_markup=ReplyKeyboardRemove())
             #log faylga yozamiz
-            give_new_ip_to_base_station(ip_address, bs_id, bsnode_id, user_id)
-
-
+            await give_new_ip_to_base_station(ip_address, bs_id, bsnode_id, user_id, user_name)
         else:
+            await query.answer()
             await query.message.answer(
                     "Извините, в данной узле агрегации нет свободных мест для нового бс.",
                     reply_markup=ReplyKeyboardRemove()
@@ -745,31 +778,16 @@ async def change_node(query: CallbackQuery):
 #file_idsi bu o'zgaruvchi global o'zgaruvchi xisoblanadi, xar safar yangi ip_plan faylni serverga yuklaganimizda qiymati yangilanadi
 #va o'sha oxirgi yuklangan faylni qayta userga yuborish uchun ishlatamiz
 
-# bu yuklangan faylni o'zini qaytarib yuborish foydalanuvchiga ip plan faylini upload qilish uchun callback handler
-# @file_router.callback_query(F.data == "download_ip_file")
-# async def download_updated_ipfile_touser(query: CallbackQuery):
-#     try:
-#         if is_admin(query.from_user.id):
-#
-#             await query.answer(f"📎📊📈 Faylni serverdan qabul qilib oling\n yuklanmoqda...",
-#                                reply_markup=ReplyKeyboardRemove())
-#             # Send the file to the user
-#             await bot.send_document(query.from_user.id, document=file_idsi)
-#
-#             file_downloaded(user_id=query.from_user.id, user_firstname=query.from_user.first_name)
-#         else:
-#             await query.answer("🚫Siz admin emassiz, fayl yuklolmaysiz!", reply_markup=ReplyKeyboardRemove())
-#     except Exception as e:
-#         await query.message.reply(f"❌❓Возникло ошибка ! : <b>{str(e)}</b>\n")
 
 #ozgartirilgan excel_data dict ni yangi excel fayl yaratib , foydalanuvchiga yuborish hendleri
 @file_router.callback_query(lambda c: c.data == "download_ip_file")
 async def download_ip_file(query: CallbackQuery):
     try:
         if is_admin(query.from_user.id):
+            await query.answer()
             await query.answer("📎📊📈 Faylni serverdan qabul qilib oling\n yuklanmoqda...",
                                reply_markup=ReplyKeyboardRemove())
-            file_path = f'ip_plan_file{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.xlsx'
+            file_path = f'ip_plan_file_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.xlsx'
 
             # Write the DataFrames to the Excel file
             with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
@@ -789,10 +807,12 @@ async def download_ip_file(query: CallbackQuery):
                  # Remove the file after sending it
                 os.remove(file_path)
 
-                file_downloaded(user_id=query.from_user.id)
+                await file_downloaded(user_id=query.from_user.id, user_name=query.from_user.first_name)
             else:
+                await query.answer()
                 await query.message.reply("❌ Faylni yozishda xatolik yuz berdi")
         else:
+            await query.answer()
             await query.answer("🚫Siz admin emassiz, fayl yuklolmaysiz!", reply_markup=ReplyKeyboardRemove())
             await query.message.answer("🚫Siz admin emassiz, fayl yuklolmaysiz!", reply_markup=ReplyKeyboardRemove())
     except Exception as e:
@@ -803,4 +823,5 @@ async def download_ip_file(query: CallbackQuery):
         if os.path.exists(file_path):
             os.remove(file_path)
             logging.info("Temporary file deleted.")
+            await query.answer()
             await query.message.answer("Temporary file deleted.", reply_markup=ReplyKeyboardRemove())
