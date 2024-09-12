@@ -82,10 +82,12 @@ async def admin_manage_uppon_users(query: CallbackQuery):
 @admin_router.callback_query(F.data == "add_user")
 async def admin_check(query: CallbackQuery, state: FSMContext):
     if is_admin(query.from_user.id):
+        await query.answer()
         await query.answer("введите ID нового пользователя")
         await query.message.answer("Foydalanuvchi 🆔 sini aniqlash uchun https://t.me/username_to_id_bot dan foydalanishingiz mumkun")
         await state.set_state(AdminCommands.user_id)
     else:
+        await query.answer()
         await query.answer("у Вас нет прав!")
 
 
@@ -110,11 +112,13 @@ async def new_users_id(message: types.Message, state:FSMContext):
 async def list_users(query: CallbackQuery):
     if is_admin(query.from_user.id):
         # Your logic to delete a user here
+        await query.answer()
         await query.answer("Списка пользователей")
         await query.message.edit_text(f"Bazada {len(USERS)} ta 👤 foydalanuvchi bor.\nFoydalanuvchilar ro'yxati\n"
                                             f"{USERS}")
         await query.message.answer(f"Bazada {len(ADMINS)} ta 🥷 admin bor.\nAdminlar ro'yxati\n{ADMINS}")
     else:
+        await query.answer()
         await query.answer("Siz admin emasiz")
 
 
@@ -123,11 +127,13 @@ async def list_users(query: CallbackQuery):
 async def delete_user(query: CallbackQuery, state: FSMContext):
     if is_admin(query.from_user.id):
         # Your logic to delete a user here
+        await query.answer()
         await query.answer("введите ID пользователя которого Вы хотите удалить")
         await query.message.answer("Foydalanuvchini o'chirish, uning 🆔 sini kiriting. \n"
                                             "<code>🆔 faqatgina raqamlardan iborat ketma ketligdagi son</code>")
         await state.set_state(AdminCommands.del_user)
     else:
+        await query.answer()
         await query.answer("Siz admin emasiz")
 
 
@@ -154,11 +160,13 @@ async def del_users(message: types.Message, state:FSMContext):
 async def set_new_admin(query: CallbackQuery, state:FSMContext):
     if is_admin(query.from_user.id):
         # Your logic to set a user as admin here
+        await query.answer()
         await query.answer("введите ID пользователя которого Вы хотите назначить админом")
         await query.message.answer("Foydalanuvchini admin qilish uchun, uning 🆔 sini kiriting. \n"
                                     "<code>🆔 faqatgina raqamlardan iborat ketma ketligdagi son</code>")
         await state.set_state(AdminCommands.set_admin)
     else:
+        await query.answer()
         await query.answer("Siz admin emasiz")
 
 @admin_router.message(AdminCommands.set_admin)
@@ -181,11 +189,13 @@ async def new_admin(message: types.Message, state:FSMContext):
 async def delete_admin(query: CallbackQuery, state: FSMContext):
     if is_admin(query.from_user.id):
         # Your logic to remove admin privileges from a user here
+        await query.answer()
         await query.answer("userni adminlikdan chiqarish")
         await query.message.answer("Foydalanuvchini adminlar ro'yxatidan o'chirish uchun, uning 🆔 sini kiriting. \n"
                                             "<code>🆔 faqatgina raqamlardan iborat ketma ketligdagi son</code>")
         await state.set_state(AdminCommands.del_admin)
     else:
+        await query.answer()
         await query.answer("Siz admin emasiz")
 
 
