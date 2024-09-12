@@ -69,6 +69,8 @@ async def main():
     register_global_middlewares(dp, config)
 
     await on_startup(bot, config.tg_bot.admin_ids)
+    #bot o'chiq paytida zapros yuborilsa ularni ignor qiladigan buyruq
+    await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
