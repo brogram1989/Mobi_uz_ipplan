@@ -825,3 +825,151 @@ async def download_ip_file(query: CallbackQuery):
             logging.info("Temporary file deleted.")
             await query.answer()
             await query.message.answer("Temporary file deleted.", reply_markup=ReplyKeyboardRemove())
+
+
+#___________________________________________________________________________________#
+#ip plan fayl va sistema upravleniyaning ip fayllarini solishtiruvchi handler.
+# Bunda faqat ip plan faylida bor bs larning ip addresslarigina solishtiriladi OMS ip addresslarining o'zi
+
+@file_router.message(Command("check_ip"))
+async def check_ip(message: Message, state: FSMContext):
+    if is_admin(message.from_user.id):  # Assuming you have an is_admin check
+        await state.set_state(FindId.check_ip)
+        await message.answer("Загрузите ip файл из система управлении")
+    else:
+        await message.answer("🚫 У Вас нет прав, Вы не админ!", reply_markup=ReplyKeyboardRemove())
+
+@file_router.message(FindId.check_ip)
+async def handle_of_server_ip_file(message: types.Message, state:FSMContext):
+    try:
+        await message.bot.send_chat_action(
+            chat_id=message.chat.id,
+            action=ChatAction.TYPING,
+        )
+        # Download the Excel file
+        file_content, info, fayl_itself = await download_file(message.document.file_id)
+        #yuklanayotgan faylni keyinchalik download qilib olish uchun ma'lumotlar
+        #yuklanyotgan fayl idsi
+        # file_idsi bu o'zgaruvchi global o'zgaruvchi xisoblanadi, xar safar yangi ip_plan faylni serverga yuklaganimizda qiymati yangilanadi
+        # va o'sha oxirgi yuklangan faylni qayta userga yuborish uchun ishlatamiz
+
+        file_idsi = message.document.file_id
+        fayl_path = info.file_path
+
+        # Load the Excel file into a Pandas DataFrame
+        #faqat DEVIP vkladkasidagi ma'lumotlar bilan ishlaymiz
+        #ip_configni global deb elon qilamiz
+        global ip_config
+        #ikkinchi qatorni column name qilib belgilash
+        ip_config = pd.read_excel(file_content, sheet_name="DEVIP", header=1)
+
+        await message.reply(f"\n <b>✅ выгрузился успешно !</b>{excel_data.keys()}")
+        #endi qaysi regionni solishtirish uchun keyboard chiqazamiz
+        #endi fayldan BS idlarni solishtirish uchun alohida kesib olamiz
+
+        # Create a new 'BS_ID' column by splitting the '*Name' column and taking the first part
+        ip_config['BS_ID'] = ip_config['*Name'].str.split("_").str[0]
+        # prompt: How to relocate column from its orginal place to another ?
+
+        # Assuming you want to move 'BS_ID' to the first position (index 0)
+        cols = list(ip_config.columns)
+        # bs_id turgan indexdan o'chirilib, insert yordamida qaytadan 0 chi indexga qo'yilyabdi
+        cols.insert(0, cols.pop(cols.index('BS_ID')))
+        # kerak bo'lmagan columnlarni o'chiramiz
+        no_need = ['*Cabinet No.', '*Subrack No.', '*Slot No.', 'Subboard Type', 'Port Type', 'Port No.', '*VRF Index',
+                   'Borrow IFIP']
+        for column in no_need:
+            cols.remove(column)
+
+        ip_config = ip_config.loc[:, cols]
+        #excel_datadagi sheet_names lardan regionlarni chiqazib olamiz
+        keyboard_builder = InlineKeyboardBuilder()
+        for region in excel_data:
+            check = "№ объекта"
+            # "№ объекта" column bo'lmagan sheetlarni buttonga qo'shmaslik
+            if check in excel_data[region].columns:
+                # adding regions by sheets
+                button_name = region
+                # keyinchalik filtrda qaysi regionligini ajratib olish uchun 'region_is' qo'shimchasini qo'shyabmiz
+                callback_data = 'to_check_ip:' + region
+                keyboard_builder.add_button(button_name, callback_data)
+        # back to main menu
+        keyboard_builder.add_button("🏘назад на меню", callback_data='to_mainmenu')
+        site_inlinekeyboard = keyboard_builder.create_keyboard()
+        await message.answer(f"\nС какой регионом Вы хотите сравнить ip адресов?", reply_markup=site_inlinekeyboard)
+        await state.clear()
+    except Exception as e:
+        await message.reply(f"❌❓Возникло ошибка ! : <b>{str(e)}</b>\n"
+                            f"Попробуйте заново !📎\n")
+        await state.clear()
+
+#_________________________________________________________________________________________________________________#
+#qaysidir region tanlanganda shu region ip addresslarini solishtirish uchun handler
+@file_router.callback_query(lambda callback_query: callback_query.data.startswith('to_check_ip'))
+async def determine_difference_ip(query: CallbackQuery):
+    try:
+        user_name = query.from_user.first_name
+        # Extract the region
+        # Split the remaining string at the ':'
+
+        prefix, region = query.data.split(':')
+        # Get the desired DataFrame based on the region
+        ip_plan = excel_data[region]
+        # prompt: how to filter ip_plan[region] in "№ объекта" column to not NaN value
+
+        # Filter the 'SAM' DataFrame to exclude NaN values in the 'Новый № объекта' column
+        filtered_reg = ip_plan[ip_plan['№ объекта'].notna()]
+        # I have 2 dataframe, filtered_reg and ip_config.
+        # Task is to check if filtered_reg['OMC IP'] columns values has ip_config['*IP Address'] columns, and if has check  filtered_reg['№ объекта'] equal or not with ip_config['BS_ID']?
+
+        # To achieve this task, you can use the merge() function to combine the two DataFrames based on the 'OMC IP' and '*IP Address' columns. Then, you can check if filtered_reg['Новый № объекта'] is equal to ip_config['BS_ID'] for the merged rows. Here is how you can do it step-by-step:
+
+        # Merge filtered_reg and ip_config based on the IP columns. Filter the merged
+        # DataFrame to keep only the rows where filtered_reg['№ объекта'] is
+        # equal to ip_config['BS_ID'].
+
+        merged_df_inner = filtered_reg.merge(ip_config, left_on='OMC IP', right_on='*IP Address', how='inner')
+        # prompt: I need difference of sets filtered_reg['№ объекта'] and merged_df_inner['№ объекта']
+
+        # Find the difference between the two sets
+        diff_set = set(filtered_reg['№ объекта']) - set(merged_df_inner['№ объекта'])
+
+        # Assuming 'diff_set' is your set object
+        difference_ip = pd.DataFrame(list(diff_set), columns=['Difference'])
+
+        await query.answer()
+        await query.answer(f"{user_name} 📎📊📈 Faylni serverdan qabul qilib oling \n yuklanmoqda...",
+                           reply_markup=ReplyKeyboardRemove())
+        dif_file_path = f'{region}_difference_ip_address_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.xlsx'
+
+        # Write the DataFrames to the Excel file
+        with pd.ExcelWriter(dif_file_path, engine='openpyxl') as writer:
+            difference_ip.to_excel(writer, sheet_name=f'bs_{region}',index=False)
+
+        # Check if the file was processed successfully
+        if dif_file_path is not None and os.path.exists(dif_file_path):
+            # Send the processed file to the user
+            # Fetch the action before sending the file
+            await query.bot.send_chat_action(
+                chat_id=query.message.chat.id,
+                action=ChatAction.UPLOAD_DOCUMENT,
+            )
+            await bot.send_document(query.from_user.id, BufferedInputFile.from_file(dif_file_path))
+            # Remove the file after sending it
+            os.remove(dif_file_path)
+        else:
+            await query.answer()
+            await query.message.reply("❌ Faylni yozishda xatolik yuz berdi")
+
+    except Exception as e:
+        await query.message.answer(f"❌❓Возникло ошибка ! : <b>{str(e)}</b>\n")
+
+    finally:
+    # Always remove the file after the operation
+        if os.path.exists(dif_file_path):
+            os.remove(dif_file_path)
+            logging.info("Temporary file deleted.")
+            await query.answer()
+            await query.message.answer("Temporary file deleted.", reply_markup=ReplyKeyboardRemove())
+
+#______________________________________________________________________________________________________________#
