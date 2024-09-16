@@ -49,7 +49,7 @@ async def send_log_file(message: types.Message):
                 )
             )
         else:
-            await message.answer("Log file not found.")
+            await message.answer("Лог файл не нашли!")
 
     except Exception as e:
         await message.answer(f"Error occurred: {str(e)}")
@@ -64,12 +64,12 @@ async def start_broadcast(message: types.Message, state: FSMContext):
         await message.answer("Напишите текст который Вы хотите отправить пользовотелям:")
         await state.set_state(FindId.send_msg)
     else:
-        await message.answer("🚫 You are not authorized to use this command.", reply_markup=ReplyKeyboardRemove())
+        await message.answer("🚫 У Вас нет прав, Вы не ползователь!", reply_markup=ReplyKeyboardRemove())
 
 # Handler to capture the broadcast message and send it to all users
 @menu_router.message(F.text, FindId.send_msg)
 async def broadcast_message(message: types.Message, state:FSMContext):
-    if is_admin(message.from_user.id):
+    if is_user(message.from_user.id):
         broadcast_text = message.text
         failed_users = []
         success_count = 0
@@ -84,7 +84,7 @@ async def broadcast_message(message: types.Message, state:FSMContext):
             await state.clear()
         await message.answer(f"Сообшения отправлено {success_count} ползователям. Не отправлено {len(failed_users)} ползователям.")
     else:
-        await message.answer("🚫 You are not authorized to broadcast messages.")
+        await message.answer("🚫 У Вас нет прав, Вы не ползователь!")
 
 #__________________________________________________________#
 
@@ -92,13 +92,14 @@ async def broadcast_message(message: types.Message, state:FSMContext):
 @menu_router.message(Command("help"))
 async def help_command(message: Message):
     await message.answer("This is the help desk. Choose an option:"
-                         "\n/menu - Show menu"
-                         "\n/reset - for reseting some state"
-                         "\n/download_log - download log files"
-                         "\n/send_message - send message to users"
-                         "\n/help - Show help"
-                         "\n\n⌨️💻This bot is written by Dilshod Gafurov "
-                         "\ncontacts:"
+                         "\n/menu - показать главного меню"
+                         "\n/reset - при неожиданного ситуатции сбросить все задачи бота"
+                         "\n/download_log - загрузить лог файлы"
+                         "\n/check_ip - сверить плановый ip адресов, с системой управлении"
+                         "\n/send_message - отправить сообщения всем пользователям"
+                         "\n/help - помощь"
+                         "\n\n⌨️💻Этот бот написал Дилшод Гафуров"
+                         "\nконтакты:"
                          "\ntelegram: t.me/Gafurov989"
                          "\nGitHub: https://github.com/brogram1989/"
                          "\n📱1: +998 88 989 87 23"
@@ -106,11 +107,12 @@ async def help_command(message: Message):
 
 async def set_commands(bot: Bot):
     commands = [
-        BotCommand(command="/menu", description="Show main menu"),
-        BotCommand(command="/reset", description="reset some state"),
-        BotCommand(command="/download_log", description="download log file"),
-        BotCommand(command="/send_message", description="send message to users"),
-        BotCommand(command="/help", description="Show help"),
+        BotCommand(command="/menu", description="показать главного меню"),
+        BotCommand(command="/reset", description="при неожиданного ситуатции сбросить все задачи бота"),
+        BotCommand(command="/download_log", description="загрузить лог файлы"),
+        BotCommand(command="/check_ip", description="сверить плановый ip адресов, с системой управлении"),
+        BotCommand(command="/send_message", description="отправить сообщения всем пользователям"),
+        BotCommand(command="/help", description="помощь"),
     ]
     await bot.set_my_commands(commands)
 
